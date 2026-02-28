@@ -1,12 +1,14 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+
 from apps.projects.models import Collaborator, Project, Task
 
 
 @pytest.fixture(autouse=True)
 def clear_cache():
     cache.clear()
+
 
 @pytest.fixture
 def project_urls():

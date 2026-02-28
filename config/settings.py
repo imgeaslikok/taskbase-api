@@ -2,6 +2,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
+
 BASE_DIR = Path(__file__).resolve().parent.parent  # config/ -> project root
 
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev").lower()  # dev | test | prod
@@ -85,8 +87,6 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
-
-import dj_database_url
 
 DATABASES = {
     "default": dj_database_url.config(

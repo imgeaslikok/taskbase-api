@@ -25,15 +25,16 @@ def assert_valid_token_pair(data: dict) -> None:
     actual_keys = set(data.keys())
 
     assert actual_keys == expected_keys, (
-        f"Token response keys mismatch. "
-        f"Expected {expected_keys}, got {actual_keys}"
+        f"Token response keys mismatch. Expected {expected_keys}, got {actual_keys}"
     )
 
     access = data["access"]
     refresh = data["refresh"]
 
     assert isinstance(access, str) and access, "Access token must be non-empty string"
-    assert isinstance(refresh, str) and refresh, "Refresh token must be non-empty string"
+    assert isinstance(refresh, str) and refresh, (
+        "Refresh token must be non-empty string"
+    )
 
     # JWT format sanity check
     assert access.count(".") == 2, "Access token is not valid JWT format"

@@ -40,8 +40,12 @@ def test_projects_create_ok(auth_client, project_urls):
 
 @pytest.mark.django_db
 def test_projects_filter_by_status(auth_client, project_urls):
-    Project.objects.create(owner=auth_client.test_user, name="A", description="d", status="active")
-    Project.objects.create(owner=auth_client.test_user, name="B", description="d", status="archived")
+    Project.objects.create(
+        owner=auth_client.test_user, name="A", description="d", status="active"
+    )
+    Project.objects.create(
+        owner=auth_client.test_user, name="B", description="d", status="archived"
+    )
 
     res = auth_client.get(project_urls["list"] + "?status=active")
     assert res.status_code == status.HTTP_200_OK
@@ -52,8 +56,12 @@ def test_projects_filter_by_status(auth_client, project_urls):
 
 @pytest.mark.django_db
 def test_projects_ordering_by_name(auth_client, project_urls):
-    Project.objects.create(owner=auth_client.test_user, name="Zeta", description="d", status="active")
-    Project.objects.create(owner=auth_client.test_user, name="Alpha", description="d", status="active")
+    Project.objects.create(
+        owner=auth_client.test_user, name="Zeta", description="d", status="active"
+    )
+    Project.objects.create(
+        owner=auth_client.test_user, name="Alpha", description="d", status="active"
+    )
 
     res = auth_client.get(project_urls["list"] + "?ordering=name")
     assert res.status_code == status.HTTP_200_OK
@@ -66,10 +74,16 @@ def test_projects_ordering_by_name(auth_client, project_urls):
 @pytest.mark.django_db
 def test_projects_search(auth_client, project_urls):
     Project.objects.create(
-        owner=auth_client.test_user, name="CRM System", description="Sales", status="active"
+        owner=auth_client.test_user,
+        name="CRM System",
+        description="Sales",
+        status="active",
     )
     Project.objects.create(
-        owner=auth_client.test_user, name="Mobile App", description="iOS", status="active"
+        owner=auth_client.test_user,
+        name="Mobile App",
+        description="iOS",
+        status="active",
     )
 
     res = auth_client.get(project_urls["list"] + "?search=crm")
@@ -85,7 +99,9 @@ def test_projects_list_includes_counts(auth_client, project_urls):
     """
     ProjectListSerializer should expose tasks_count & collaborators_count.
     """
-    Project.objects.create(owner=auth_client.test_user, name="A", description="d", status="active")
+    Project.objects.create(
+        owner=auth_client.test_user, name="A", description="d", status="active"
+    )
 
     res = auth_client.get(project_urls["list"])
     assert res.status_code == status.HTTP_200_OK

@@ -54,7 +54,7 @@ test:
 	$(DEV) exec -e DJANGO_ENV=test $(API) pytest
 
 lint:
-	$(DEV) exec $(API) ruff check .
+	$(DEV) exec $(API) ruff check . --fix
 
 format:
 	$(DEV) exec $(API) ruff format .
