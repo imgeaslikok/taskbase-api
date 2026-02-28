@@ -1,0 +1,20 @@
+services:
+  api:
+    build:
+      context: .
+      target: dev
+    environment:
+      DJANGO_ENV: dev
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: dev-only-unsafe-key
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DATABASE_URL: sqlite:////app/db.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000
+      "
