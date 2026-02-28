@@ -35,6 +35,6 @@ class SlugMixin(models.Model):
     def save(self, *args, **kwargs):
         """Generate slug on first save if not provided."""
         if not self.slug:
-            self.slug = slugify(self.generate_slug())
+            self.slug = self.generate_slug()
 
         super().save(*args, **kwargs)
