@@ -210,6 +210,7 @@ http://localhost:8000/api/v1/
 
 Example endpoints:
 
+```
 POST   /auth/login/
 GET    /auth/me/
 
@@ -218,7 +219,7 @@ POST   /projects/
 
 GET    /projects/{slug}/tasks/
 POST   /projects/{slug}/tasks/
-
+```
 ---
 
 # Quickstart
