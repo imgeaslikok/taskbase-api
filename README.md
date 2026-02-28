@@ -1,4 +1,5 @@
 # TaskBase API
+[![Medium](https://img.shields.io/badge/Medium-Production--Ready--Django-black)](https://medium.com/production-ready-django)
 
 Production-minded Django REST Framework backend demonstrating real-world architecture, authorization, and operational patterns.
 
