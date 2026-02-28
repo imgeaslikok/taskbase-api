@@ -325,13 +325,3 @@ This project is actively maintained and used as a reference implementation for p
 # License
 
 MIT License
-
----
-
-# Author
-
-Backend Engineer focused on scalable backend systems and clean architecture.
-
-GitHub:
-
-https://github.com/imgeaslikok
