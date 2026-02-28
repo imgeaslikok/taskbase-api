@@ -7,7 +7,6 @@ test_db.sqlite3
 *.log
 staticfiles/
 .env
-.env.*
 .pytest_cache/
 .coverage
 htmlcov/
