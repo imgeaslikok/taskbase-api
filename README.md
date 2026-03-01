@@ -1,7 +1,8 @@
 # TaskBase API
+
 [![Medium](https://img.shields.io/badge/Medium-Production--Ready--Django-black)](https://medium.com/production-ready-django)
 
-Production-minded Django REST Framework backend demonstrating real-world architecture, authorization, and operational patterns.
+Production-minded Django REST Framework backend demonstrating real-world architecture, authorization, concurrency control, and operational patterns.
 
 This project is intentionally minimal in scope but designed with the same principles used in production systems.
 
@@ -23,7 +24,7 @@ Specifically:
 
 * how to structure a Django codebase for long-term maintainability
 * how to implement authentication and authorization correctly
-* how to design APIs with performance and scalability in mind
+* how to design APIs with performance, scalability, and concurrency safety in mind
 * how to prepare a backend for production environments
 
 The domain is simple. The architecture is not accidental.
@@ -40,6 +41,7 @@ The domain is simple. The architecture is not accidental.
 * User-scoped data isolation
 * Optimized list/detail API patterns
 * Request-scoped observability
+* PostgreSQL-native concurrency-safe task status transitions
 
 ---
 
@@ -114,6 +116,32 @@ This matches real production safety practices.
 
 ---
 
+## PostgreSQL concurrency control
+
+Task status transitions are protected using:
+
+**PostgreSQL advisory locks**
+
+via:
+
+django-concurrency-safe
+
+This prevents:
+
+* race conditions
+* lost updates
+* inconsistent state
+
+Ensures:
+
+* per-task serialization
+* safe concurrent requests
+* correct HTTP 409 Conflict responses
+
+This pattern is commonly used in production systems but rarely demonstrated in Django projects.
+
+---
+
 ## Optimized query patterns
 
 List and detail endpoints use different query strategies:
@@ -157,10 +185,17 @@ Structured logs include:
 
 Fully containerized.
 
+All environments use PostgreSQL:
+
 Development:
 
-* SQLite
+* PostgreSQL
+* Docker
 * auto-reload
+
+Testing:
+
+* PostgreSQL
 
 Production:
 
@@ -220,7 +255,9 @@ POST   /projects/
 
 GET    /projects/{slug}/tasks/
 POST   /projects/{slug}/tasks/
+PATCH  /projects/{slug}/tasks/{id}/
 ```
+
 ---
 
 # Quickstart
@@ -285,6 +322,7 @@ Includes:
 * API tests
 * permission tests
 * authentication tests
+* concurrency tests (PostgreSQL advisory locks)
 
 ---
 
@@ -295,6 +333,8 @@ This project demonstrates:
 * production-ready Django architecture
 * clean and maintainable structure
 * explicit authorization design
+* concurrency-safe domain logic
+* PostgreSQL-native implementation
 * performance-aware query patterns
 * operational readiness mindset
 
@@ -311,8 +351,10 @@ The series explains:
 * architecture decisions
 * authentication implementation
 * RBAC design
+* soft delete
+* observability
+* concurrency control
 * Docker and deployment
-* production readiness
 
 https://medium.com/production-ready-django
 

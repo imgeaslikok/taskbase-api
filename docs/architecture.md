@@ -77,7 +77,65 @@ Rejected due to operational risk.
 
 ---
 
-### 5. Optimized List vs Detail Queries
+### 5. Concurrency Control Using PostgreSQL Advisory Locks
+
+Task status transitions are protected using **PostgreSQL advisory locks**.
+
+Locks are acquired per task during status transitions to ensure serialized execution.
+
+Example lock key pattern:
+
+```
+taskbase:task:{task_id}:transition:status
+```
+
+Implemented via:
+
+django-concurrency-safe
+
+**Why**
+
+Concurrent updates to the same task can otherwise cause:
+
+* race conditions
+* lost updates
+* inconsistent state
+
+Advisory locks ensure:
+
+* per-task serialization
+* safe concurrent execution
+* deterministic state transitions
+
+**Alternative considered:**
+
+**Database row locking (`SELECT FOR UPDATE`)**
+
+Rejected because:
+
+* harder to encapsulate cleanly at domain level
+* more coupled to ORM transaction boundaries
+* less explicit as a domain concurrency primitive
+
+**Alternative considered:**
+
+**Optimistic locking (version field)**
+
+Rejected because:
+
+* requires retry logic
+* more complex client handling
+* less deterministic for demonstration purposes
+
+Advisory locks provide:
+
+* explicit concurrency control
+* clean domain integration
+* production-grade safety
+
+---
+
+### 6. Optimized List vs Detail Queries
 
 List endpoints return minimal data.
 Detail endpoints return expanded representations.
@@ -90,7 +148,7 @@ Detail endpoints return expanded representations.
 
 ---
 
-### 6. Consistent Error Contract
+### 7. Consistent Error Contract
 
 All errors follow a standard format and include a request ID.
 
@@ -101,7 +159,7 @@ All errors follow a standard format and include a request ID.
 
 ---
 
-### 7. Request-Scoped Observability
+### 8. Request-Scoped Observability
 
 Each request has a request ID propagated through logs and responses.
 
@@ -112,15 +170,31 @@ Each request has a request ID propagated through logs and responses.
 
 ---
 
-### 8. Environment Separation
+### 9. PostgreSQL Across All Environments
 
-Development uses SQLite.
-Production uses PostgreSQL and Gunicorn.
+All environments use PostgreSQL:
+
+* Development
+* Testing
+* Production
 
 **Why**
 
-* Fast local setup
-* Production parity where it matters
+Concurrency control relies on PostgreSQL advisory locks.
+
+Using PostgreSQL everywhere ensures:
+
+* production parity
+* reliable concurrency testing
+* consistent behavior across environments
+
+Alternative considered: SQLite for development
+
+Rejected because:
+
+* SQLite does not support advisory locks
+* Different concurrency characteristics
+* Reduced production parity
 
 ---
 
@@ -139,3 +213,13 @@ The goal is clarity, not abstraction depth.
 ## Summary
 
 TaskBase demonstrates how to structure a Django project with production-ready thinking while remaining minimal and understandable.
+
+It includes:
+
+* explicit domain layer separation
+* RBAC authorization
+* soft delete safety
+* request-scoped observability
+* PostgreSQL-native concurrency control
+
+while maintaining architectural clarity.
