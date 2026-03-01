@@ -79,9 +79,8 @@ Organized by business capability, not technical layer:
 
 ```
 apps/
-  users/
+  core/
   projects/
-  tasks/
 ```
 
 This scales better than controller/service/repository separation in Django.
