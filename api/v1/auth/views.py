@@ -1,4 +1,5 @@
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -46,18 +47,12 @@ class LogoutView(APIView):
     def post(self, request):
         refresh = request.data.get("refresh")
         if not refresh:
-            return Response(
-                {"detail": "refresh token required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"refresh": ["This field is required."]})
 
         try:
             RefreshToken(refresh).blacklist()
         except TokenError:
-            return Response(
-                {"detail": "invalid token"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"refresh": ["Invalid token."]})
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
