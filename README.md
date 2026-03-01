@@ -264,7 +264,7 @@ PATCH  /projects/{slug}/tasks/{id}/
 Clone repository:
 
 ```
-git clone https://github.com/yourusername/taskbase-api.git
+git clone https://github.com/imgeaslikok/taskbase-api.git
 cd taskbase-api
 ```
 
