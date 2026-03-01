@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from api.common.enums import ErrorCode
 from tests.utils.assertions import assert_valid_token_pair
 from tests.utils.auth import decode_jwt_payload
 from tests.utils.http import HTTP_400_OR_401
@@ -123,6 +124,10 @@ def test_logout_requires_refresh_in_body(auth_client, auth_urls):
     res = auth_client.post(auth_urls["logout"], {}, format="json")
     assert res.status_code == status.HTTP_400_BAD_REQUEST
 
+    assert "error" in res.data
+    assert res.data["error"]["code"] == ErrorCode.VALIDATION_ERROR
+    assert "refresh" in res.data["error"]["details"]
+
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
@@ -133,9 +138,15 @@ def test_logout_requires_refresh_in_body(auth_client, auth_urls):
         "abc.def.ghi",
     ],
 )
-def test_logout_invalid_refresh_returns_400_or_401(auth_client, auth_urls, bad_refresh):
+def test_logout_invalid_refresh_returns_400_and_error_contract(
+    auth_client, auth_urls, bad_refresh
+):
     res = auth_client.post(auth_urls["logout"], {"refresh": bad_refresh}, format="json")
-    assert res.status_code in HTTP_400_OR_401
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+    assert "error" in res.data
+    assert res.data["error"]["code"] == ErrorCode.VALIDATION_ERROR
+    assert "refresh" in res.data["error"]["details"]
 
 
 @pytest.mark.django_db

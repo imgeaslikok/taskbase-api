@@ -9,10 +9,35 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # config/ -> project root
 
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev").lower()  # dev | test | prod
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "dev-only-unsafe-key" if DJANGO_ENV != "test" else "x" * 64,
-)
+
+def _get_secret_key() -> str:
+    """
+    SECRET_KEY hardening.
+
+    - prod: must be explicitly set and >= 32 chars
+    - test: ensure >= 32 chars even if env provides a short key (prevents JWT warnings)
+    - dev: provide a long default for local DX
+    """
+    raw = os.environ.get("DJANGO_SECRET_KEY")
+
+    if DJANGO_ENV == "prod":
+        if not raw:
+            raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set in production")
+        if len(raw) < 32:
+            raise ImproperlyConfigured(
+                "DJANGO_SECRET_KEY must be at least 32 characters in production"
+            )
+        return raw
+
+    if DJANGO_ENV == "test":
+        # If env var exists but is too short, override to keep tests deterministic and safe.
+        return raw if raw and len(raw) >= 32 else ("x" * 64)
+
+    # dev
+    return raw if raw else ("dev-only-unsafe-key-" + ("x" * 48))
+
+
+SECRET_KEY = _get_secret_key()
 
 # Keep DEBUG explicit; allow env override, but also provide sane defaults by env.
 if "DJANGO_DEBUG" in os.environ:
@@ -20,13 +45,22 @@ if "DJANGO_DEBUG" in os.environ:
 else:
     DEBUG = DJANGO_ENV == "dev"
 
-# ALLOWED_HOSTS: in dev allow everything unless explicitly set (simple DX).
-if DJANGO_ENV == "dev" and "DJANGO_ALLOWED_HOSTS" not in os.environ:
+
+if DJANGO_ENV == "prod":
+    raw_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS")
+    if not raw_hosts:
+        raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set in production")
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
+elif DJANGO_ENV == "dev" and "DJANGO_ALLOWED_HOSTS" not in os.environ:
     ALLOWED_HOSTS: list[str] = []
 else:
-    ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(
-        ","
-    )
+    ALLOWED_HOSTS = [
+        h.strip()
+        for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(
+            ","
+        )
+        if h.strip()
+    ]
 
 
 INSTALLED_APPS = [
@@ -204,6 +238,22 @@ CACHES = {
         "LOCATION": f"taskbase:{DJANGO_ENV}:default",
     }
 }
+
+if DJANGO_ENV == "prod":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"
+
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "1") == "1"
+
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 
 # Test-only speedups

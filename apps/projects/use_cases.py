@@ -16,6 +16,7 @@ from concurrency_safe import concurrency_safe
 from .enums import TaskStatus
 from .exceptions import InvalidTaskStatus, TaskConcurrencyError
 from .models import Task
+from .locks import TASK_STATUS_LOCK_KEY_TEMPLATE
 
 
 def _raise_task_conflict(*_args, **_kwargs) -> None:
@@ -42,7 +43,7 @@ class TransitionTaskStatusResult:
 
 
 @concurrency_safe(
-    key="taskbase:task:{task.pk}:transition:status",
+    key=TASK_STATUS_LOCK_KEY_TEMPLATE,
     timeout=1.0,
     on_conflict=_raise_task_conflict,
 )

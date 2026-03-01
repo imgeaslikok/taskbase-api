@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from rest_framework import serializers
 
 from apps.projects.models import Collaborator, Project, Task
@@ -133,18 +134,43 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 class TaskWriteSerializer(serializers.ModelSerializer):
     """
     Create/Update serializer.
-    - project is resolved by URL and set in the view's perform_create() func
+
+    - project is resolved by URL and set on request.project via ProjectScopedMixin
+    - assignee is restricted to project owner and active collaborators
     """
 
     slug = serializers.CharField(read_only=True)
 
     assignee_id = serializers.PrimaryKeyRelatedField(
         source="assignee",
-        queryset=User.objects.all(),
+        queryset=User.objects.all(),  # default, will be scoped in __init__
         required=False,
         allow_null=True,
         write_only=True,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get("request")
+        project = getattr(request, "project", None) if request else None
+
+        # Serializer used outside project scope → keep default queryset
+        if project is None:
+            return
+
+        # Restrict assignee choices to:
+        # - project owner
+        # - active collaborators (soft delete aware)
+        allowed_users = User.objects.filter(
+            Q(id=project.owner_id)
+            | Q(
+                collaborations__project=project,
+                collaborations__deleted_at__isnull=True,
+            )
+        ).distinct()
+
+        self.fields["assignee_id"].queryset = allowed_users
 
     class Meta:
         model = Task
