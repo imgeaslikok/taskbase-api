@@ -3,12 +3,16 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # config/ -> project root
 
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev").lower()  # dev | test | prod
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-unsafe-key")
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "dev-only-unsafe-key" if DJANGO_ENV != "test" else "x" * 64,
+)
 
 # Keep DEBUG explicit; allow env override, but also provide sane defaults by env.
 if "DJANGO_DEBUG" in os.environ:
@@ -88,10 +92,15 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 
+DATABASE_URL = os.environ.get("DATABASE_URL", default=None)
+
+if not DATABASE_URL:
+    raise ImproperlyConfigured("DATABASE_URL must be set")
+
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-        conn_max_age=60,
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=0 if DJANGO_ENV == "test" else 60,
     )
 }
 

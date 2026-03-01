@@ -9,8 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from api.common.cache import cache_list_response
 from api.common.enums import EventType
 from api.common.events import log_event
+from apps.projects.exceptions import InvalidTaskStatus, TaskConcurrencyError
 from apps.projects.models import Collaborator, Project, Task
+from apps.projects.use_cases import transition_task_status
 
+from .exceptions import ConcurrencyConflict
 from .filters import CollaboratorFilter, ProjectFilter, TaskFilter
 from .mixins import ProjectScopedMixin
 from .permissions import CollaboratorPermission, TaskPermission
@@ -189,6 +192,25 @@ class TaskViewSet(
             task=task.slug,
             actor_id=self.request.user.id,
         )
+
+    def perform_update(self, serializer):
+        task = self.get_object()
+
+        if "status" in serializer.validated_data:
+            try:
+                to_status = serializer.validated_data.pop("status")
+
+                serializer.instance = transition_task_status(
+                    task=task,
+                    to_status=to_status,
+                ).task
+            except TaskConcurrencyError as exc:
+                raise ConcurrencyConflict(str(exc)) from exc
+            except InvalidTaskStatus as exc:
+                raise ValidationError({"status": str(exc)}) from exc
+
+        if serializer.validated_data:
+            serializer.save()
 
 
 class CollaboratorViewSet(

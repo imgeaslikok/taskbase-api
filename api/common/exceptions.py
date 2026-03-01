@@ -6,7 +6,18 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from .enums import ErrorCode
+
 logger = logging.getLogger("django.request")
+
+
+STATUS_TO_ERROR_CODE = {
+    status.HTTP_400_BAD_REQUEST: ErrorCode.VALIDATION_ERROR,
+    status.HTTP_401_UNAUTHORIZED: ErrorCode.AUTHENTICATION_FAILED,
+    status.HTTP_403_FORBIDDEN: ErrorCode.PERMISSION_DENIED,
+    status.HTTP_404_NOT_FOUND: ErrorCode.NOT_FOUND,
+    status.HTTP_409_CONFLICT: ErrorCode.CONCURRENCY_CONFLICT,
+}
 
 
 def core_exception_handler(exc, context):
@@ -85,16 +96,11 @@ def _handle_unexpected_error(exc, request_id):
 
 
 def _map_status_to_code(status_code):
-    """
-    Map HTTP status codes to stable application error codes.
-    """
 
-    return {
-        400: "validation_error",
-        401: "authentication_failed",
-        403: "permission_denied",
-        404: "not_found",
-    }.get(status_code, "error")
+    return STATUS_TO_ERROR_CODE.get(
+        status_code,
+        ErrorCode.SERVER_ERROR,
+    )
 
 
 def _extract_message(data):
