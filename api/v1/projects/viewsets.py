@@ -1,17 +1,18 @@
 import logging
 
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from api.common.cache import cache_list_response
 from api.common.enums import EventType
 from api.common.events import log_event
 from apps.projects.exceptions import InvalidTaskStatus, TaskConcurrencyError
 from apps.projects.models import Collaborator, Project, Task
-from apps.projects.use_cases import transition_task_status
+from apps.projects.use_cases import add_collaborator, transition_task_status
 
 from .exceptions import ConcurrencyConflict
 from .filters import CollaboratorFilter, ProjectFilter, TaskFilter
@@ -226,7 +227,7 @@ class CollaboratorViewSet(
 
     Endpoints:
     - GET    /projects/{project_slug}/collaborators/
-    - POST   /projects/{project_slug}/collaborators/            (add)
+    - POST   /projects/{project_slug}/collaborators/            (add or restore)
     - PATCH  /projects/{project_slug}/collaborators/{user_id}/  (change role)
     - DELETE /projects/{project_slug}/collaborators/{user_id}/  (remove)
 
@@ -265,23 +266,42 @@ class CollaboratorViewSet(
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serializer_class)
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        """
+        Add collaborator with restore semantics:
+        - create if missing
+        - restore if soft-deleted
+        - update role if already active (idempotent)
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        try:
-            with transaction.atomic():
-                collaborator = serializer.save(
-                    project=self.project,
-                )
-                log_event(
-                    logging.INFO,
-                    EventType.COLLABORATOR_ADDED,
-                    project=self.project.slug,
-                    actor_id=self.request.user.id,
-                    user_id=collaborator.user_id,
-                    role=collaborator.role,
-                )
+        user = serializer.validated_data["user"]
+        role = serializer.validated_data["role"]
 
-        except IntegrityError:
-            raise ValidationError(
-                {"user": "User is already a collaborator of this project."}
+        with transaction.atomic():
+            result = add_collaborator(project=self.project, user=user, role=role)
+
+            # Log one event; include flags for clarity
+            log_event(
+                logging.INFO,
+                EventType.COLLABORATOR_ADDED,
+                project=self.project.slug,
+                actor_id=request.user.id,
+                user_id=result.collaborator.user_id,
+                role=result.collaborator.role,
+                created=result.created,
+                restored=result.restored,
+                role_updated=result.role_updated,
             )
+
+        # Response payload should reflect current state; list serializer is fine as output
+        out = CollaboratorListSerializer(
+            result.collaborator, context=self.get_serializer_context()
+        )
+
+        # Status code: 201 only when newly created; otherwise 200 (restore/update)
+        return Response(
+            out.data,
+            status=status.HTTP_201_CREATED if result.created else status.HTTP_200_OK,
+        )

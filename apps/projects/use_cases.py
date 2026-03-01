@@ -10,13 +10,18 @@ django-concurrency-safe.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from concurrency_safe import concurrency_safe
+from django.db import transaction
 
 from .enums import TaskStatus
 from .exceptions import InvalidTaskStatus, TaskConcurrencyError
-from .models import Task
 from .locks import TASK_STATUS_LOCK_KEY_TEMPLATE
+from .models import Collaborator, Project, Task
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser
 
 
 def _raise_task_conflict(*_args, **_kwargs) -> None:
@@ -71,3 +76,50 @@ def transition_task_status(*, task: Task, to_status: str) -> TransitionTaskStatu
     task.save(update_fields=["status", "updated_at"])
 
     return TransitionTaskStatusResult(task=task, idempotent=False)
+
+
+@dataclass(frozen=True)
+class AddCollaboratorResult:
+    collaborator: Collaborator
+    created: bool
+    restored: bool
+    role_updated: bool
+
+
+@transaction.atomic
+def add_collaborator(
+    *, project: Project, user: AbstractBaseUser, role: str
+) -> AddCollaboratorResult:
+    """
+    Add a collaborator to a project.
+
+    Behavior:
+    - if missing: create
+    - if soft-deleted: restore + set role
+    - if active: update role if needed (idempotent)
+    """
+    qs = getattr(Collaborator, "all_objects", Collaborator.objects)
+    collab = qs.filter(project=project, user=user).first()
+
+    if collab is None:
+        collab = Collaborator.objects.create(project=project, user=user, role=role)
+        return AddCollaboratorResult(
+            collaborator=collab, created=True, restored=False, role_updated=False
+        )
+
+    restored = False
+    role_updated = False
+
+    if getattr(collab, "deleted_at", None):
+        # restore() should set deleted_at=None and save
+        collab.restore()
+        restored = True
+
+    if collab.role != role:
+        collab.role = role
+        collab.save(update_fields=["role", "updated_at"])
+        role_updated = True
+
+    return AddCollaboratorResult(
+        collaborator=collab, created=False, restored=restored, role_updated=role_updated
+    )
