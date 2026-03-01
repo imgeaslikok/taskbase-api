@@ -1,6 +1,16 @@
 from enum import StrEnum
 
 
+class ErrorCode(StrEnum):
+    VALIDATION_ERROR = "validation_error"
+    AUTHENTICATION_FAILED = "authentication_failed"
+    PERMISSION_DENIED = "permission_denied"
+    NOT_FOUND = "not_found"
+    INTEGRITY_ERROR = "integrity_error"
+    CONCURRENCY_CONFLICT = "concurrency_conflict"
+    SERVER_ERROR = "server_error"
+
+
 class EventType(StrEnum):
     """
     Stable identifiers for application log events.

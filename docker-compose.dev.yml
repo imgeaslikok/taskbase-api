@@ -8,13 +8,27 @@ services:
       DJANGO_DEBUG: "1"
       DJANGO_SECRET_KEY: dev-only-unsafe-key
       DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
-      DATABASE_URL: sqlite:////app/db.sqlite3
+      DATABASE_URL: postgresql://app:app@db:5432/app
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+    depends_on:
+      - db
     command: >
       sh -c "
       python manage.py migrate &&
       python manage.py runserver 0.0.0.0:8000
       "
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata_dev:
