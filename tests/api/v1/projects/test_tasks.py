@@ -3,6 +3,7 @@ import time
 
 import pytest
 from concurrency_safe import lock
+from django.contrib.auth import get_user_model
 from django.db import connection
 from rest_framework import status
 
@@ -55,6 +56,39 @@ def test_tasks_create_ok(owner_client, task_urls):
     assert "slug" in res.data
 
     assert_object_in_list(owner_client, task_urls["list"], res.data["slug"])
+
+
+@pytest.mark.django_db
+def test_tasks_create_rejects_assignee_outside_project(owner_client, task_urls):
+    """
+    assignee_id must be restricted to project owner + active collaborators.
+    Non-member users should be rejected with 400.
+    """
+    User = get_user_model()
+
+    username_field = getattr(User, "USERNAME_FIELD", "username")
+    outsider_value = "outsider@example.com" if username_field == "email" else "outsider"
+
+    outsider = User.objects.create_user(
+        **{username_field: outsider_value},
+        password="StrongPass123!",
+    )
+
+    payload = {
+        "title": "T1",
+        "description": "d",
+        "status": "todo",
+        "priority": "low",
+        "position": 0,
+        "assignee_id": outsider.id,
+    }
+
+    res = owner_client.post(task_urls["list"], payload, format="json")
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST, res.data
+    assert "error" in res.data
+    assert res.data["error"]["code"] == ErrorCode.VALIDATION_ERROR
+    assert "assignee_id" in res.data["error"]["details"]
 
 
 @pytest.mark.django_db
